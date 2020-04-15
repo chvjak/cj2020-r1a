@@ -1,64 +1,69 @@
-f = open("patterns1.txt")
+f = open("patterns3.txt")
 
-# this is special trie which can't have branches
-# but can have wildcards/asterisks sections
-class PatternTrie:
-    def __init__(self):
-        self.data = []      
+import SuffixTrie
 
-    def place(self, starting_pos, data):
-         # consider subgroups - i.e C, CD
-         # consider placement in * as well as among known letters
-        self.data = self.data[:starting_pos] + data + self.data[starting_pos: ]
+import sys
+f = sys.stdin
 
-    def can_place(self, starting_pos, data):
-        # if it is not the first group then it is preceeded by *, so it can start anywhere on or after starting_pos => ruining the whole sense of the trie
-        # => a pattern should be an array of tries
-        for p, t in enumerate(self.tries[starting_pos]):
-            if t.found(data):
-                return starting_pos + p # position of matching trie
+def merge_asterisks(raw_pattern_list):
+    res = []
+    middles = ""
+    for p in raw_pattern_list:
+        groups = p.split("*")
+        if len(groups) > 2:
+            res += [groups[0] + "*" + groups[-1]]
+            middles += "".join(groups[1:-1])
         else:
-            return starting_pos + 1     # position of next asterisk (if there is one)
+            res += [p]
+    return res, middles 
 
+def find_matching_string(raw_pattern_list):
+    # solve for set 2 : only one *
+    # aa*aa, *aa, aa*
 
-def find_matching_string(patterns):
-    for p in patterns:
-        groups = p.split("*")       # A*CD*E = > A, {C&D|CD}, E are groups
-        for g in groups:
-            for tp in pattern_trie.positions():
-                if pattern_trie.can_place(tp, g):
-                    break
-            else:
-                return false # actually backtrack, revert the previous group placement and try next tp or even the whole previous pattern placement
+    pattern_list, middles = merge_asterisks(raw_pattern_list)
 
-            pattern_trie.place(tp, g)
+    prefix_set = set()
+    suffix_set = set()
+    res = ""
 
-    return ""
+    for ptrn in pattern_list:
+        prefix, suffix = ptrn.split("*")
+        if prefix:
+            prefix_set.add(prefix)
+        if suffix:
+            suffix_set.add(suffix)
 
-def try_applying_next_group(patterns, groups):
-    if len(groups):
-        #if group applies
-            try_applying_next_group(patterns, groups[1:])
-    else:
-        return try_applying_next_pattern(patterns[1:])
+    if len(prefix_set):
+        prefix_list = list(sorted(prefix_set, key=len, reverse=True))
+        longest_pfx = prefix_list[0]
+        for pfx in prefix_list[1:]:
+            if longest_pfx.find(pfx) != 0:
+                return "*"
 
-def try_applying_next_pattern(patterns):
-    if len(patterns):
-        p = patterns[0]
-        groups = p.split("*")       # A*CD*E = > A, {C&D|CD}, E are groups
-        try_applying_next_group(groups)
+        res += longest_pfx
 
-def find_matching_string(patterns):
-        return try_applying_next_pattern(patterns[1:])
+    res += middles
+    if len(suffix_set):
+        suffix_list = list(sorted(suffix_set, key=len, reverse=True))
+        longest_sffx = suffix_list[0]
+        for sffx in suffix_list[1:]:
+            if longest_sffx.rfind(sffx) != len(longest_sffx) - len(sffx):
+                return "*"
 
+        res += longest_sffx
+
+    return res 
 
 T = int(f.readline())
 for t in range(T):
     N = int(f.readline())
-    patterns = []
+    pattern_list = []
     for n in range(N):
-        patterns +=  f.readline().strip()
+        raw_pattern = f.readline().strip()
+        pattern = "*".join(raw_pattern.split("*"))      # remove duplicated *
+        pattern_list +=  [pattern]
 
-    res = find_matching_string(patterns)
+    res = find_matching_string(pattern_list)
 
-    print("Case #{1}: {2}".format(t + 1, res))
+    print("Case #{0}: {1}".format(t + 1, res))
